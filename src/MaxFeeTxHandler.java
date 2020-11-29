@@ -64,28 +64,37 @@ public class MaxFeeTxHandler {
             stack.push(v);
         }
 
-        ArrayList<Transaction> topologicalSort() {
-            Stack<Integer> stack = new Stack<>();
-            ArrayList<Integer> sorted = new ArrayList<>();
+        ArrayList<ArrayList<Transaction>> topologicalSort() {
+            ArrayList<ArrayList<Transaction>> all_sorted_txs = new ArrayList<>();
 
-            boolean[] visited = new boolean[possibleTxs.length];
-            for (int i = 0; i < possibleTxs.length; ++i)
-                visited[i] = false;
+            for (int[] starting_point : starting_points) {
+                Stack<Integer> stack = new Stack<>();
+                ArrayList<Integer> sorted = new ArrayList<>();
+                boolean[] visited = new boolean[possibleTxs.length];
+                for (int i = 0; i < possibleTxs.length; ++i)
+                    visited[i] = false;
+                DepthFirstSearch(starting_point[0], visited, stack);
+                for (int j = 0; j < possibleTxs.length; ++j) {
+                    if (j == starting_point[0]) {
+                        continue;
+                    }
+                    if (!visited[j]) {
+                        DepthFirstSearch(j, visited, stack);
+                    }
+                }
+                while (!stack.empty()) {
+                    sorted.add(stack.pop());
+                }
 
-            for (int[] starting_point : starting_points)
-                if (!visited[starting_point[0]])
-                    DepthFirstSearch(starting_point[0], visited, stack);
-
-            while (!stack.empty()) {
-                sorted.add(stack.pop());
+                ArrayList<Transaction> sorted_txs = new ArrayList<>();
+                for (int index : sorted) {
+                    sorted_txs.add(possibleTxs[index]);
+                }
+                all_sorted_txs.add(sorted_txs);
             }
 
-            ArrayList<Transaction> sorted_txs = new ArrayList<>();
-            for (int index : sorted) {
-                sorted_txs.add(possibleTxs[index]);
-            }
 
-            return sorted_txs;
+            return all_sorted_txs;
         }
 
     }
@@ -253,13 +262,19 @@ public class MaxFeeTxHandler {
 
 
         MaxFeeTxHandler.TransactionSorter transactionSorter = new MaxFeeTxHandler.TransactionSorter(possibleTxs);
-        ArrayList<Transaction> possibleTxs_sorted = transactionSorter.topologicalSort();
+        ArrayList<ArrayList<Transaction>> all_possibleTxs_sorted = transactionSorter.topologicalSort();
         ArrayList<Transaction> out_TXs = new ArrayList<>();
 
-        for (Transaction transaction : possibleTxs_sorted) {
-            if (isValidTx(transaction)) {
-                out_TXs.add(transaction);
-                txHandlerHelper.handle_inputs_outputs(transaction);
+        for (ArrayList<Transaction> possibleTxs_sorted : all_possibleTxs_sorted) {
+            ArrayList<Transaction> out_TXs_i = new ArrayList<>();
+            for (Transaction transaction : possibleTxs_sorted) {
+                if (isValidTx(transaction)) {
+                    out_TXs_i.add(transaction);
+                    txHandlerHelper.handle_inputs_outputs(transaction);
+                }
+            }
+            if (out_TXs_i.size() > out_TXs.size()) {
+                out_TXs = new ArrayList<>(out_TXs_i);
             }
         }
 
